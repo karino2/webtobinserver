@@ -22,9 +22,23 @@ class MainHandler(webapp.RequestHandler):
     def get(self):
         self.response.out.write('Hello world!')
 
+class TableHandler(webapp.RequestHandler):
+    def get(self, tableName):
+	callback = self.request.get('callback')
+	body = """{"titles": ["date", "GDP", "consumption"],
+ "types": ["integer", "numeric", "numeric"],
+ "data": [[1980, 312712.7, 174382.7],
+[1981, 321490.5, 177074.9]]
+}""" 
+	if callback:
+		body = ('%s(%s);' % (callback, body))
+	self.response.headers['Content-Type']='text/javascript'
+	self.response.headers['Content-Length'] = len(body)
+	self.response.out.write(body)
 
 def main():
-    application = webapp.WSGIApplication([('/', MainHandler)],
+    application = webapp.WSGIApplication([('/', MainHandler),
+					   ('/t/([^/]*)/json', TableHandler)],
                                          debug=True)
     util.run_wsgi_app(application)
 
