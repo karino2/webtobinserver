@@ -67,6 +67,11 @@ class TableHandler(webapp.RequestHandler):
 		rangeField = range[0]
 		rangeBeg = float(range[1])
 		rangeEnd = float(range[2])
+	num = self.request.get('n')
+	if num:
+		num = int(num)
+	else:
+		num = 10 #default, very small.
         body = []
         body.append('{"titles": [')
 	
@@ -100,9 +105,9 @@ class TableHandler(webapp.RequestHandler):
         body.append(',')
         # TODO: num
 	if range:
-		cols = self.getCellsWithRange(titles, tableName, rangeField, rangeBeg, rangeEnd, 1000)
+		cols = self.getCellsWithRange(titles, tableName, rangeField, rangeBeg, rangeEnd, num)
 	else:
-		cols = self.getCells(titles, tableName)
+		cols = self.getCells(titles, tableName, num)
 	self.appendData(body, cols)
         body.append("}")
         body = "".join(body)
@@ -152,11 +157,11 @@ class TableHandler(webapp.RequestHandler):
 			body.append(str(col[irow].val))
 		body.append("]")
         body.append("]")
-    def getCells(self, titles, tableName):
+    def getCells(self, titles, tableName, num):
 	cols = []
 	for t in titles:
 		baseQuery = NumericCell.all().filter('table = ', tableName).order('-row')
-		oneCol = baseQuery.filter('col =', t.col).fetch(100)
+		oneCol = baseQuery.filter('col =', t.col).fetch(num)
 		cols.append(oneCol)
 	return cols
     def getCellsWithRange(self, titles, tableName, rangeField, rangeBeg, rangeEnd, num):
