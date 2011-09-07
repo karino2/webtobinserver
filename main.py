@@ -83,24 +83,7 @@ class TableHandler(webapp.RequestHandler):
         body = []
         body.append('{"titles": [')
 	
-	#print OK
-	#tableName = urllib2.unquote(tableName)
-	
-        #print OK, set OK but no hit
-        #tableName = urllib2.unquote(tableName)
-        #tableName = tableName.decode('utf-8')
-
-	#self.response.out.write('table=' + str(type(tableName)))
-        #return
-        
-        #tableName = tableName.encode('utf-8')
-        #tableName = tableName.decode('utf-8')
-	#self.response.out.write('table=' + unicode(tableName, 'utf-8'))
-        #tableName = unicode(tableName, 'utf-8')
-	#self.response.out.write('table=' + tableName)
-	#return 
-
-	tableName = urllib2.unquote(tableName)
+	tableName = urllib2.unquote(tableName).decode('utf-8')
 
 	titles = Title.all().filter('table = ', tableName).order('col').fetch(1000)
 	titles = filter(lambda x: x.title in fields, titles)
@@ -111,7 +94,6 @@ class TableHandler(webapp.RequestHandler):
 	# temp implementation, all must be numeric
 	self.appendTypes(body, titles)
         body.append(',')
-        # TODO: num
 	if range:
 		cols = self.getCellsWithRange(titles, tableName, rangeField, rangeBeg, rangeEnd, num)
 	else:
@@ -197,7 +179,8 @@ import StringIO
 class UploadHandler(webapp.RequestHandler): 
    def post(self): 
      fileData = self.request.get("file")
-     tableName = self.request.get("tableName").encode('utf-8')
+     tableName = self.request.get("tableName")
+     #tableName = self.request.get("tableName").encode('utf-8')
      # print OK, that is, not Unicode... self.response.out.write("tableName " + tableName)
      if not fileData or not tableName:
          return self.redirect('/')
@@ -221,6 +204,7 @@ class UploadHandler(webapp.RequestHandler):
            cell = NumericCell(table=tableName, row=nrow, col=ncol, val=float(col))
            putCand.append(cell)
      db.put(putCand)
+     self.response.out.write("Table [" + tableName +"] uploaded.")
 
 
 def main():
