@@ -54,10 +54,19 @@ class MainHandler(webapp.RequestHandler):
 import urllib2
 
 class TableHandler(webapp.RequestHandler):
+    def getParams(self, name):
+	if not self.request.get(name):
+		return None
+        params = self.request.get(name).split(',')
+	return map(lambda x: urllib2.unquote(x), params)
     def get(self, tableName):
 	callback = self.request.get('callback')
-        fields = self.request.get('f').split(',')
-	fields = map(lambda x: urllib2.unquote(x), fields)
+        fields = self.getParams('f')
+	range = self.getParams('r')
+	if range:
+		rangeField = range[0]
+		rangeBeg = float(range[1])
+		rangeEnd = float(range[2])
         body = []
         body.append('{"titles": [')
 	
@@ -81,9 +90,29 @@ class TableHandler(webapp.RequestHandler):
 	tableName = urllib2.unquote(tableName)
 
 	titles = Title.all().filter('table = ', tableName).order('col').fetch(1000)
-        first = True
 	titles = filter(lambda x: x.title in fields, titles)
         titleLen = len(titles)
+
+	self.appendTitles(body, titles)
+        body.append(',')
+	# temp implementation, all must be numeric
+	self.appendTypes(body, titles)
+        body.append(',')
+        # TODO: num
+	if range:
+		cols = self.getCellsWithRange(titles, tableName, rangeField, rangeBeg, rangeEnd, 1000)
+	else:
+		cols = self.getCells(titles, tableName)
+	self.appendData(body, cols)
+        body.append("}")
+        body = "".join(body)
+	if callback:
+		body = ('%s(%s);' % (callback, body))
+	self.response.headers['Content-Type']='text/javascript'
+	self.response.headers['Content-Length'] = len(body)
+	self.response.out.write(body)
+    def appendTitles(self, body, titles):
+        first = True
         for title in titles:
            if first:
                first = False
@@ -92,7 +121,9 @@ class TableHandler(webapp.RequestHandler):
            body.append('"')
            body.append(title.title)
            body.append('"')
-        body.append('],"types": [')
+        body.append(']')
+    def appendTypes(self, body, titles):
+	body.append('"types": [')
         first = True
         for t in titles:
            if first:
@@ -100,15 +131,9 @@ class TableHandler(webapp.RequestHandler):
            else:
               body.append(',')
            body.append('"numeric"')
-        body.append('],"data": [' )
-        # TODO: num
-	cols = []
-	for t in titles:
-		baseQuery = NumericCell.all().filter('table = ', tableName).order('-row')
-		oneCol = baseQuery.filter('col =', t.col).fetch(100)
-		cols.append(oneCol)
-	# cells = query.order('col').fetch(10*titleLen)
-        #cells = NumericCell.all().filter('table = ', tableName).order('-row').order('col').fetch(10*titleLen)
+        body.append(']')
+    def appendData(self, body, cols):
+        body.append('"data": [' )
         cur = 0
 	oneCol = cols[0]
         first1 = True
@@ -126,13 +151,32 @@ class TableHandler(webapp.RequestHandler):
 				body.append(",")
 			body.append(str(col[irow].val))
 		body.append("]")
-        body.append("]}")
-        body = "".join(body)
-	if callback:
-		body = ('%s(%s);' % (callback, body))
-	self.response.headers['Content-Type']='text/javascript'
-	self.response.headers['Content-Length'] = len(body)
-	self.response.out.write(body)
+        body.append("]")
+    def getCells(self, titles, tableName):
+	cols = []
+	for t in titles:
+		baseQuery = NumericCell.all().filter('table = ', tableName).order('-row')
+		oneCol = baseQuery.filter('col =', t.col).fetch(100)
+		cols.append(oneCol)
+	return cols
+    def getCellsWithRange(self, titles, tableName, rangeField, rangeBeg, rangeEnd, num):
+	cols = []
+	targetCol = [t.col for t in titles if t.title == rangeField][0]
+	target = NumericCell.all().filter('table = ', tableName).filter('col = ', targetCol).filter('val >=', rangeBeg).filter('val <=', rangeEnd).fetch(num)
+	target.sort(lambda x, y: cmp(y.val, x.val))
+	rowRangeEnd = target[0].row
+	rowRangeBeg = target[-1].row
+	for t in titles:
+		if t.col == targetCol:
+			cols.append(target)
+			continue
+		query = NumericCell.all().filter('table = ', tableName)
+		query = query.filter('row >=', rowRangeBeg).filter('row <=', rowRangeEnd)
+		oneCol = query.order('-row').filter('col =', t.col).fetch(num)
+		cols.append(oneCol)
+	return cols
+
+
 
 import csv
 import StringIO
@@ -164,6 +208,7 @@ class UploadHandler(webapp.RequestHandler):
            cell = NumericCell(table=tableName, row=nrow, col=ncol, val=float(col))
            putCand.append(cell)
      db.put(putCand)
+
 
 def main():
     application = webapp.WSGIApplication([('/', MainHandler),
