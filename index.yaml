@@ -15,7 +15,6 @@ indexes:
   - name: col
   - name: table
   - name: row
-    direction: desc
 
 - kind: NumericCell
   properties:

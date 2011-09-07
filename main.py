@@ -168,7 +168,7 @@ class TableHandler(webapp.RequestHandler):
     def getCells(self, titles, tableName, num):
 	cols = []
 	for t in titles:
-		baseQuery = NumericCell.all().filter('table = ', tableName).order('-row')
+		baseQuery = NumericCell.all().filter('table = ', tableName).order('row')
 		oneCol = baseQuery.filter('col =', t.col).fetch(num)
 		cols.append(oneCol)
 	return cols
@@ -176,16 +176,16 @@ class TableHandler(webapp.RequestHandler):
 	cols = []
 	targetCol = [t.col for t in titles if t.title == rangeField][0]
 	target = NumericCell.all().filter('table = ', tableName).filter('col = ', targetCol).filter('val >=', rangeBeg).filter('val <=', rangeEnd).fetch(num)
-	target.sort(lambda x, y: cmp(y.val, x.val))
-	rowRangeEnd = target[0].row
-	rowRangeBeg = target[-1].row
+	target.sort(lambda x, y: cmp(x.val, y.val))
+	rowRangeBeg = target[0].row
+	rowRangeEnd = target[-1].row
 	for t in titles:
 		if t.col == targetCol:
 			cols.append(target)
 			continue
 		query = NumericCell.all().filter('table = ', tableName)
 		query = query.filter('row >=', rowRangeBeg).filter('row <=', rowRangeEnd)
-		oneCol = query.order('-row').filter('col =', t.col).fetch(num)
+		oneCol = query.order('row').filter('col =', t.col).fetch(num)
 		cols.append(oneCol)
 	return cols
 
