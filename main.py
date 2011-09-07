@@ -17,6 +17,7 @@
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import util
 from google.appengine.ext import db
+from django.utils.html import escape
 
 class NumericCell(db.Model):
    table = db.StringProperty()
@@ -34,6 +35,23 @@ class TableDescription(db.Model):
    name = db.StringProperty()
    description = db.TextProperty()
 
+class ShowTablesHandler(webapp.RequestHandler):
+    def get(self):
+	html = """<html>
+<head><title>Web Tobin Server, upload csv</title></head>
+<body>
+<h1>Available tables</h1>
+<ul>
+"""
+	tables = TableDescription.all().fetch(100)
+	for table in tables:
+		html += "<li>"
+		html += escape(table.name)
+		html += "<br>"
+		html += escape(table.description)
+		html += "</li>"
+	html += "</ul></body></html>"
+        self.response.out.write(html)
 
 class MainHandler(webapp.RequestHandler):
     def get(self):
@@ -211,6 +229,7 @@ def main():
     application = webapp.WSGIApplication([('/', MainHandler),
 					  ('/upload', UploadHandler),
 					  ('/delete/([^/]*)/', DeleteHandler),
+					  ('/tables', ShowTablesHandler),
 					   ('/t/([^/]*)/json', TableHandler)],
                                          debug=True)
     util.run_wsgi_app(application)
