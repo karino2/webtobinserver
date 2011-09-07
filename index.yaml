@@ -12,7 +12,27 @@ indexes:
 
 - kind: NumericCell
   properties:
+  - name: col
   - name: table
+  - name: row
+    direction: desc
+
+- kind: NumericCell
+  properties:
+  - name: table
+  - name: row
+  - name: col
+
+- kind: NumericCell
+  properties:
+  - name: table
+  - name: row
+    direction: desc
+  - name: col
+
+- kind: NumericCell
+  properties:
+  - name: table=
   - name: row
   - name: col
 
@@ -21,3 +41,7 @@ indexes:
   - name: table
   - name: col
 
+- kind: Title
+  properties:
+  - name: table=
+  - name: col

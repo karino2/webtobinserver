@@ -56,6 +56,8 @@ import urllib2
 class TableHandler(webapp.RequestHandler):
     def get(self, tableName):
 	callback = self.request.get('callback')
+        fields = self.request.get('f').split(',')
+	fields = map(lambda x: urllib2.unquote(x), fields)
         body = []
         body.append('{"titles": [')
 	
@@ -75,9 +77,12 @@ class TableHandler(webapp.RequestHandler):
         #tableName = unicode(tableName, 'utf-8')
 	#self.response.out.write('table=' + tableName)
 	#return 
+
 	tableName = urllib2.unquote(tableName)
-	titles = Title.all().filter('table = ', tableName).order('col').fetch(100)
+
+	titles = Title.all().filter('table = ', tableName).order('col').fetch(1000)
         first = True
+	titles = filter(lambda x: x.title in fields, titles)
         titleLen = len(titles)
         for title in titles:
            if first:
@@ -95,22 +100,33 @@ class TableHandler(webapp.RequestHandler):
            else:
               body.append(',')
            body.append('"numeric"')
-        body.append('],"data": [[' )
+        body.append('],"data": [' )
         # TODO: num
-        cells = NumericCell.all().filter('table = ', tableName).order('row').order('col').fetch(10*titleLen)
+	cols = []
+	for t in titles:
+		baseQuery = NumericCell.all().filter('table = ', tableName).order('-row')
+		oneCol = baseQuery.filter('col =', t.col).fetch(100)
+		cols.append(oneCol)
+	# cells = query.order('col').fetch(10*titleLen)
+        #cells = NumericCell.all().filter('table = ', tableName).order('-row').order('col').fetch(10*titleLen)
         cur = 0
-        first = True
-        for cell in cells:
-           if(cur != cell.row):
-              body.append("],[")
-              first = True
-              cur = cell.row
-           if first:
-              first = False
-           else:
-              body.append(",")
-           body.append(str(cell.val))
-        body.append("]]}")
+	oneCol = cols[0]
+        first1 = True
+	for irow in range(0, len(oneCol)):
+		if first1:
+			first1 = False
+		else :
+			body.append(",")
+		body.append("[")
+	        first = True
+		for col in cols:
+			if first:
+				first = False
+			else:
+				body.append(",")
+			body.append(str(col[irow].val))
+		body.append("]")
+        body.append("]}")
         body = "".join(body)
 	if callback:
 		body = ('%s(%s);' % (callback, body))
