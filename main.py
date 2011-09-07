@@ -53,6 +53,14 @@ class MainHandler(webapp.RequestHandler):
 
 import urllib2
 
+class DeleteHandler(webapp.RequestHandler):
+    def get(self, tableName):
+	tableName = urllib2.unquote(tableName).decode('utf-8')
+	db.delete(NumericCell.all().filter('table = ', tableName))
+	db.delete(Title.all().filter('table = ', tableName))
+	db.delete(TableDescription.all().filter('name = ', tableName))
+	self.response.out.write("Table [" + tableName +"] deleted.")
+
 class TableHandler(webapp.RequestHandler):
     def getParams(self, name):
 	if not self.request.get(name):
@@ -218,6 +226,7 @@ class UploadHandler(webapp.RequestHandler):
 def main():
     application = webapp.WSGIApplication([('/', MainHandler),
 					  ('/upload', UploadHandler),
+					  ('/delete/([^/]*)/', DeleteHandler),
 					   ('/t/([^/]*)/json', TableHandler)],
                                          debug=True)
     util.run_wsgi_app(application)
