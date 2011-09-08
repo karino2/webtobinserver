@@ -10,17 +10,10 @@ indexes:
 # automatically uploaded to the admin console when you next deploy
 # your application using appcfg.py.
 
-- kind: NumericCell
+- kind: NumericRow
   properties:
-  - name: col
   - name: table
-  - name: row
-
-- kind: NumericCell
-  properties:
-  - name: col
-  - name: table
-  - name: val
+  - name: index
 
 - kind: Title
   properties:

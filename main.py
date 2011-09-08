@@ -19,11 +19,10 @@ from google.appengine.ext.webapp import util
 from google.appengine.ext import db
 from django.utils.html import escape
 
-class NumericCell(db.Model):
+class NumericRow(db.Model):
    table = db.StringProperty()
-   row = db.IntegerProperty()
-   col = db.IntegerProperty()
-   val = db.FloatProperty()
+   index = db.FloatProperty()
+   vals = db.ListProperty(float)
 
 
 class Title(db.Model):
@@ -74,7 +73,7 @@ import urllib2
 class DeleteHandler(webapp.RequestHandler):
     def get(self, tableName):
 	tableName = urllib2.unquote(tableName).decode('utf-8')
-	db.delete(NumericCell.all().filter('table = ', tableName))
+	db.delete(NumericRow.all().filter('table = ', tableName))
 	db.delete(Title.all().filter('table = ', tableName))
 	db.delete(TableDescription.all().filter('name = ', tableName))
 	self.response.out.write("Table [" + tableName +"] deleted.")
@@ -86,13 +85,12 @@ class TableHandler(webapp.RequestHandler):
         params = self.request.get(name).split(',')
 	return map(lambda x: urllib2.unquote(x), params)
     def get(self, tableName):
-	callback = self.request.get('callback')
+	callback = self.request.get('callback').encode('utf-8')
         fields = self.getParams('f')
 	range = self.getParams('r')
 	if range:
-		rangeField = range[0]
-		rangeBeg = float(range[1])
-		rangeEnd = float(range[2])
+		rangeBeg = float(range[0])
+		rangeEnd = float(range[1])
 	num = self.request.get('n')
 	if num:
 		num = int(num)
@@ -114,10 +112,11 @@ class TableHandler(webapp.RequestHandler):
 	self.appendTypes(body, titles)
         body.append(',')
 	if range:
-		cols = self.getCellsWithRange(titles, tableName, rangeField, rangeBeg, rangeEnd, num)
+		rows = self.getRowsWithRange(tableName, rangeBeg, rangeEnd, num)
 	else:
-		cols = self.getCells(titles, tableName, num)
-	self.appendData(body, cols)
+		rows = self.getRows(tableName, num)
+	rows = self.onlyTitlesRow(titles, rows)
+	self.appendData(body, rows)
         body.append("}")
         body = "".join(body)
 	if callback:
@@ -125,6 +124,18 @@ class TableHandler(webapp.RequestHandler):
 	self.response.headers['Content-Type']='text/javascript'
 	self.response.headers['Content-Length'] = len(body)
 	self.response.out.write(body)
+    def onlyTitlesRow(self, titles, rows):
+	colNums = [t.col for t in titles]
+	ret = []
+	for oneRow in rows:
+		oneRowRet = []
+		if 0 in colNums:
+			oneRowRet.append(oneRow.index)
+		for i, val in enumerate(oneRow.vals):
+			if (i+1) in colNums:
+				oneRowRet.append(val)
+		ret.append(oneRowRet)
+	return ret
     def appendTitles(self, body, titles):
         first = True
         for title in titles:
@@ -146,49 +157,70 @@ class TableHandler(webapp.RequestHandler):
               body.append(',')
            body.append('"numeric"')
         body.append(']')
-    def appendData(self, body, cols):
+    def appendData(self, body, rows):
         body.append('"data": [' )
-        cur = 0
-	oneCol = cols[0]
         first1 = True
-	for irow in range(0, len(oneCol)):
+	for row in rows:
 		if first1:
 			first1 = False
 		else :
 			body.append(",")
 		body.append("[")
-	        first = True
-		for col in cols:
+		first = True
+		for col in row:
 			if first:
 				first = False
 			else:
 				body.append(",")
-			body.append(str(col[irow].val))
+			body.append(str(col))
 		body.append("]")
-        body.append("]")
-    def getCells(self, titles, tableName, num):
-	cols = []
-	for t in titles:
-		baseQuery = NumericCell.all().filter('table = ', tableName).order('row')
-		oneCol = baseQuery.filter('col =', t.col).fetch(num)
-		cols.append(oneCol)
-	return cols
-    def getCellsWithRange(self, titles, tableName, rangeField, rangeBeg, rangeEnd, num):
-	cols = []
-	targetCol = [t.col for t in titles if t.title == rangeField][0]
-	target = NumericCell.all().filter('table = ', tableName).filter('col = ', targetCol).filter('val >=', rangeBeg).filter('val <=', rangeEnd).fetch(num)
-	target.sort(lambda x, y: cmp(x.val, y.val))
-	rowRangeBeg = target[0].row
-	rowRangeEnd = target[-1].row
-	for t in titles:
-		if t.col == targetCol:
-			cols.append(target)
-			continue
-		query = NumericCell.all().filter('table = ', tableName)
-		query = query.filter('row >=', rowRangeBeg).filter('row <=', rowRangeEnd)
-		oneCol = query.order('row').filter('col =', t.col).fetch(num)
-		cols.append(oneCol)
-	return cols
+	body.append("]")
+        #cur = 0
+	#oneCol = cols[0]
+        #first1 = True
+	#for irow in range(0, len(oneCol)):
+	#for col in cols:
+	#	body.append("[")
+	#	body.append(str(col.val))
+	#	body.append("]")
+        #body.append("]")
+	#for irow in range(0, len(oneCol)):
+	#	if first1:
+	#		first1 = False
+	#	else :
+	#		body.append(",")
+	#	body.append("[")
+	#        first = True
+	#	for col in cols:
+	#		if first:
+	#			first = False
+	#		else:
+	#			body.append(",")
+	#		body.append(str(col[irow].val))
+	#	body.append("]")
+        #body.append("]")
+    def getRows(self, tableName, num):
+	return NumericRow.all().filter('table = ', tableName).fetch(num)
+	#cols = []
+	# test
+        # 24self.response.out.write(len(titles))
+	#return db.GqlQuery("SELECT * FROM NumericCell WHERE col IN :1 LIMIT :2", [t.col for t in titles], num)
+	# too slow return db.GqlQuery("SELECT * FROM NumericCell WHERE col IN :1 LIMIT 10", range(0, 23))
+	# 14sec, too slow? return db.GqlQuery("SELECT * FROM NumericCell WHERE col IN :1 LIMIT 10", range(0, 10))
+	# 8sec return db.GqlQuery("SELECT * FROM NumericCell WHERE col IN :1 LIMIT 10", range(0, 5))
+	return db.GqlQuery("SELECT * FROM NumericCell WHERE col IN :1 LIMIT 10", range(0, 3))
+	# fast enough return db.GqlQuery("SELECT * FROM NumericCell LIMIT 20")
+	#for i in range(0, 24):
+	#	baseQuery = NumericCell.all().filter('table = ', tableName).order('row')
+	#	oneCol = baseQuery.filter('col =', i).fetch(num)
+	#	cols.append(oneCol)
+	#for t in titles:
+	#	baseQuery = NumericCell.all().filter('table = ', tableName).order('row')
+	#	oneCol = baseQuery.filter('col =', t.col).fetch(num)
+	#	cols.append(oneCol)
+	#return cols
+    def getRowsWithRange(self, tableName, rangeBeg, rangeEnd, num):
+	return NumericRow.all().filter('table = ', tableName).filter('index >=', rangeBeg).filter('index <=', rangeEnd).fetch(num)
 
 
 
@@ -221,10 +253,17 @@ class UploadHandler(webapp.RequestHandler):
         putCand.append(t)
      # self.response.out.write("\n")
      stringReader.next()
-     for nrow, row in enumerate(stringReader): 
-	for ncol, col in enumerate(row):
-           cell = NumericCell(table=tableName, row=nrow, col=ncol, val=float(col))
-           putCand.append(cell)
+     for row in stringReader: 
+	frow = []
+	for col in row:
+		frow.append(float(col))
+	rowModel = NumericRow(table=tableName, index = frow[0], vals=frow[1:])
+	putCand.append(rowModel)
+        # avoid too much contention 
+        # 5000 was too much.
+        if len(putCand) > 1000:
+           db.put(putCand)
+           putCand = []
      db.put(putCand)
      self.response.out.write("Table [" + tableName +"] uploaded.")
 
