@@ -21,6 +21,7 @@ from django.utils.html import escape
 
 class NumericRow(db.Model):
    table = db.StringProperty()
+   row = db.IntegerProperty()
    index = db.FloatProperty()
    vals = db.ListProperty(float)
 
@@ -77,6 +78,8 @@ class DeleteHandler(webapp.RequestHandler):
 	db.delete(Title.all().filter('table = ', tableName))
 	db.delete(TableDescription.all().filter('name = ', tableName))
 	self.response.out.write("Table [" + tableName +"] deleted.")
+
+from operator import attrgetter
 
 class TableHandler(webapp.RequestHandler):
     def getParams(self, name):
@@ -200,7 +203,7 @@ class TableHandler(webapp.RequestHandler):
 	#	body.append("]")
         #body.append("]")
     def getRows(self, tableName, num):
-	return NumericRow.all().filter('table = ', tableName).fetch(num)
+	return NumericRow.all().filter('table = ', tableName).order('-row').fetch(num)
 	#cols = []
 	# test
         # 24self.response.out.write(len(titles))
@@ -208,7 +211,7 @@ class TableHandler(webapp.RequestHandler):
 	# too slow return db.GqlQuery("SELECT * FROM NumericCell WHERE col IN :1 LIMIT 10", range(0, 23))
 	# 14sec, too slow? return db.GqlQuery("SELECT * FROM NumericCell WHERE col IN :1 LIMIT 10", range(0, 10))
 	# 8sec return db.GqlQuery("SELECT * FROM NumericCell WHERE col IN :1 LIMIT 10", range(0, 5))
-	return db.GqlQuery("SELECT * FROM NumericCell WHERE col IN :1 LIMIT 10", range(0, 3))
+	# return db.GqlQuery("SELECT * FROM NumericCell WHERE col IN :1 LIMIT 10", range(0, 3))
 	# fast enough return db.GqlQuery("SELECT * FROM NumericCell LIMIT 20")
 	#for i in range(0, 24):
 	#	baseQuery = NumericCell.all().filter('table = ', tableName).order('row')
@@ -220,7 +223,9 @@ class TableHandler(webapp.RequestHandler):
 	#	cols.append(oneCol)
 	#return cols
     def getRowsWithRange(self, tableName, rangeBeg, rangeEnd, num):
-	return NumericRow.all().filter('table = ', tableName).filter('index >=', rangeBeg).filter('index <=', rangeEnd).fetch(num)
+	rows = NumericRow.all().filter('table = ', tableName).filter('index >=', rangeBeg).filter('index <=', rangeEnd).fetch(num)
+	rows.sort(key=attrgetter('row'), reverse=True)
+	return rows
 
 
 
@@ -253,11 +258,11 @@ class UploadHandler(webapp.RequestHandler):
         putCand.append(t)
      # self.response.out.write("\n")
      stringReader.next()
-     for row in stringReader: 
+     for irow, row in enumerate(stringReader): 
 	frow = []
 	for col in row:
 		frow.append(float(col))
-	rowModel = NumericRow(table=tableName, index = frow[0], vals=frow[1:])
+	rowModel = NumericRow(table=tableName, index = frow[0], row=irow, vals=frow[1:])
 	putCand.append(rowModel)
         # avoid too much contention 
         # 5000 was too much.

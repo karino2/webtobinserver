@@ -15,6 +15,12 @@ indexes:
   - name: table
   - name: index
 
+- kind: NumericRow
+  properties:
+  - name: table
+  - name: row
+    direction: desc
+
 - kind: Title
   properties:
   - name: table
