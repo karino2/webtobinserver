@@ -104,7 +104,8 @@ class TableHandler(webapp.RequestHandler):
 	tableName = urllib2.unquote(tableName).decode('utf-8')
 
 	titles = Title.all().filter('table = ', tableName).order('col').fetch(1000)
-	titles = filter(lambda x: x.title in fields, titles)
+	if fields:
+		titles = filter(lambda x: x.title in fields, titles)
         titleLen = len(titles)
 
 	self.appendTitles(body, titles)
@@ -132,7 +133,7 @@ class TableHandler(webapp.RequestHandler):
            else:
               body.append(",")
            body.append('"')
-           body.append(title.title)
+           body.append(title.title.encode('utf-8'))
            body.append('"')
         body.append(']')
     def appendTypes(self, body, titles):
@@ -210,10 +211,13 @@ class UploadHandler(webapp.RequestHandler):
      
      stringReader = csv.reader(StringIO.StringIO(fileData))
      titles = stringReader.next()
-     # self.response.out.write("title! " + str(len(titles))  +"\n")
+     #self.response.out.write("title! " + str(len(titles))  +"\n")
+     #self.response.out.write("title! " + titles[3]  +"\n")
+     #return
      for i, title in enumerate(titles):
-        #self.response.out.write(title + ",") 
-        t = Title(table=tableName, col=i, title=title)
+        #self.response.out.write(title + ",")  # print correctly
+        t = Title(table=tableName, col=i, title=title.decode('utf-8'))
+        #t = Title(table=tableName, col=i, title=title) # can't put.
         putCand.append(t)
      # self.response.out.write("\n")
      stringReader.next()
