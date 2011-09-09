@@ -207,7 +207,6 @@ class UploadHandler(webapp.RequestHandler):
      for i, title in enumerate(titles):
         t = Title(table=tableName, col=i, title=title.decode('utf-8'))
         putCand.append(t)
-     stringReader.next()
      for irow, row in enumerate(stringReader): 
 	frow = []
 	for col in row:
