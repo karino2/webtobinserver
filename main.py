@@ -178,50 +178,8 @@ class TableHandler(webapp.RequestHandler):
 			body.append(str(col))
 		body.append("]")
 	body.append("]")
-        #cur = 0
-	#oneCol = cols[0]
-        #first1 = True
-	#for irow in range(0, len(oneCol)):
-	#for col in cols:
-	#	body.append("[")
-	#	body.append(str(col.val))
-	#	body.append("]")
-        #body.append("]")
-	#for irow in range(0, len(oneCol)):
-	#	if first1:
-	#		first1 = False
-	#	else :
-	#		body.append(",")
-	#	body.append("[")
-	#        first = True
-	#	for col in cols:
-	#		if first:
-	#			first = False
-	#		else:
-	#			body.append(",")
-	#		body.append(str(col[irow].val))
-	#	body.append("]")
-        #body.append("]")
     def getRows(self, tableName, num):
 	return NumericRow.all().filter('table = ', tableName).order('-row').fetch(num)
-	#cols = []
-	# test
-        # 24self.response.out.write(len(titles))
-	#return db.GqlQuery("SELECT * FROM NumericCell WHERE col IN :1 LIMIT :2", [t.col for t in titles], num)
-	# too slow return db.GqlQuery("SELECT * FROM NumericCell WHERE col IN :1 LIMIT 10", range(0, 23))
-	# 14sec, too slow? return db.GqlQuery("SELECT * FROM NumericCell WHERE col IN :1 LIMIT 10", range(0, 10))
-	# 8sec return db.GqlQuery("SELECT * FROM NumericCell WHERE col IN :1 LIMIT 10", range(0, 5))
-	# return db.GqlQuery("SELECT * FROM NumericCell WHERE col IN :1 LIMIT 10", range(0, 3))
-	# fast enough return db.GqlQuery("SELECT * FROM NumericCell LIMIT 20")
-	#for i in range(0, 24):
-	#	baseQuery = NumericCell.all().filter('table = ', tableName).order('row')
-	#	oneCol = baseQuery.filter('col =', i).fetch(num)
-	#	cols.append(oneCol)
-	#for t in titles:
-	#	baseQuery = NumericCell.all().filter('table = ', tableName).order('row')
-	#	oneCol = baseQuery.filter('col =', t.col).fetch(num)
-	#	cols.append(oneCol)
-	#return cols
     def getRowsWithRange(self, tableName, rangeBeg, rangeEnd, num):
 	rows = NumericRow.all().filter('table = ', tableName).filter('index >=', rangeBeg).filter('index <=', rangeEnd).fetch(num)
 	rows.sort(key=attrgetter('row'), reverse=True)
@@ -236,8 +194,6 @@ class UploadHandler(webapp.RequestHandler):
    def post(self): 
      fileData = self.request.get("file")
      tableName = self.request.get("tableName")
-     #tableName = self.request.get("tableName").encode('utf-8')
-     # print OK, that is, not Unicode... self.response.out.write("tableName " + tableName)
      if not fileData or not tableName:
          return self.redirect('/')
      description = self.request.get("description")
@@ -248,15 +204,9 @@ class UploadHandler(webapp.RequestHandler):
      
      stringReader = csv.reader(StringIO.StringIO(fileData))
      titles = stringReader.next()
-     #self.response.out.write("title! " + str(len(titles))  +"\n")
-     #self.response.out.write("title! " + titles[3]  +"\n")
-     #return
      for i, title in enumerate(titles):
-        #self.response.out.write(title + ",")  # print correctly
         t = Title(table=tableName, col=i, title=title.decode('utf-8'))
-        #t = Title(table=tableName, col=i, title=title) # can't put.
         putCand.append(t)
-     # self.response.out.write("\n")
      stringReader.next()
      for irow, row in enumerate(stringReader): 
 	frow = []
